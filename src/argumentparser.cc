@@ -1,9 +1,10 @@
 //============================================================================
-// Name        : cmdparser.cpp
+// Name        : argumentparser.cc
 // Author      : Ivan Sovic
-// Version     :
-// Copyright   : Copyright Ivan Sovic, 2014. All rights reserved.
-// Description : Hello World in C++, Ansi-style
+// Version     : 1.0
+// Created on  : Sep 21, 2014
+// Copyright   : License: MIT
+// Description : Test for an argument parsing library.
 //============================================================================
 
 #include <stdio.h>
@@ -13,19 +14,29 @@ int main(int argv, char* argc[]) {
 
   ArgumentParser argparser;
 
-  argparser.AddArgument("o", "ovo", "", "Ovo je samo jedna proba!", 0, "Glavna grupa", "Ovo je samo jos jedna proba!");
-  argparser.AddArgument("a", "", "", "Proba za kratki argument.", 0, "Glavna grupa", "Ovo je samo jos jedna proba!");
-  argparser.AddArgument("", "threads", "-1", "Proba za dugi argument.", 0, "Glavna grupa", "Ovo je samo jos jedna proba!");
-//  argparser.AddArgument("", "", "", "Proba bez argumenata.", 0, "Ovo je samo jos jedna proba!");
-  argparser.AddArgument("s", "start", "", "Proba za drugu grupu.", 0, "Control", "Ovo je samo jos jedna proba!");
-  argparser.AddArgument("", "reads", "reads.fasta", "Path to the file with read sequences.", -1, "Input/Output");
-  argparser.VerboseArgumentsByGroup(stdout);
+  argparser.AddArgument("o", "open", VALUE_TYPE_STRING, "", "Opens the specified file.", 0, "Basic options", "Long description of the parameter. Currently not functional. Can be omitted.");
+  argparser.AddArgument("a", "", VALUE_TYPE_NONE, "", "Test for only a short argument.", 0, "Basic options", "Long description of the parameter. Currently not functional.");
+  argparser.AddArgument("", "threads", VALUE_TYPE_INT, "-1", "Test for only a long argument.", 0, "Basic options", "Long description of the parameter. Currently not functional.");
+//  argparser.AddArgument("", "", "", "Test for specifying no arguments.", 0, "Long description of the parameter. Currently not functional.");
+  argparser.AddArgument("s", "start", VALUE_TYPE_NONE, "", "Starts something important.", 0, "Control options", "Long description of the parameter. Currently not functional.");
+  argparser.AddArgument("", "reads1", VALUE_TYPE_STRING, "reads.fasta", "Path to the file with read sequences.", -2, "Input/Output");
+  argparser.AddArgument("", "reads2", VALUE_TYPE_STRING, "reads2.fasta", "Path to the file with read sequences.", -1, "Input/Output");
 
   argparser.ProcessArguments(argv, argc);
 
+  printf ("%s", argparser.VerboseArgumentsByGroup().c_str());
+
   printf ("\n");
 
+  printf ("Results of parsing the command line:\n");
   argparser.VerboseArguments(stdout);
+
+  printf ("\n");
+  printf ("Retrieving the value of parameter 'threads':\n");
+  printf ("threads = %s\n", argparser.GetArgument("threads")->value.c_str());
+  printf ("\n");
+
+  // TODO: Need better validation of positional arguments.
 
 	return 0;
 }
