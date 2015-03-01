@@ -266,16 +266,6 @@ std::string ArgumentParser::VerboseArgumentsByGroup() {
 void ArgumentParser::VerboseArguments(FILE *fp) {
   for (uint32_t i=0; i<arguments_.size(); i++) {
     fprintf (fp, "'-%s'\t'--%s'\t'%s'\tvalue = '%s'\tdefault = '%s'\tpositional = %d\tcount = %d\n", arguments_[i].arg_short.c_str(), arguments_[i].arg_long.c_str(), arguments_[i].value_type.c_str(), arguments_[i].value.c_str(), arguments_[i].default_value.c_str(), arguments_[i].positional, arguments_[i].count);
-
-//    std::string  = "";
-//    std::string  = "";
-//    std::string  = "";
-//    std::string  = "";
-//    std::string description_short = "";
-//    std::string arg_group = "";
-//    int32_t  = 0;
-//    int32_t count = 0;
-//    bool is_set = false;
   }
 }
 

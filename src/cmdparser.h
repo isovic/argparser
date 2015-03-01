@@ -73,6 +73,4 @@ class ArgumentParser {
   std::string program_name_;
 };
 
-//void ProcessArguments(int argc, char* argv[]);
-
 #endif /* CMDPARSER_H_ */
