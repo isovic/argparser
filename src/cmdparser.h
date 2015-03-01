@@ -61,6 +61,10 @@ class ArgumentParser {
   Argument* GetArgumentByShortName(std::string arg_name);
   Argument* GetArgumentByLongName(std::string arg_name);
 
+  int GetValue(std::string arg_name, int64_t *value);
+  int GetValue(std::string arg_name, float *value);
+  int GetValue(std::string arg_name, std::string *value);
+
  private:
   std::string WrapString_(int32_t leading_tab, int32_t wrap_width, std::string text);
 

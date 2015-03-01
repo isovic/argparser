@@ -35,5 +35,11 @@ int main(int argv, char* argc[]) {
   printf ("threads = %s\n", argparser.GetArgument("threads")->value.c_str());
   printf ("\n");
 
+  printf ("Retrieving the value of parameter 'threads' using GetValue function:\n");
+  int64_t num_threads = 0;
+  argparser.GetValue("threads", &num_threads);
+  printf ("num_threads = %ld\n", num_threads);
+  printf ("\n");
+
 	return 0;
 }

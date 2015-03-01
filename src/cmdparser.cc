@@ -17,6 +17,13 @@ ArgumentParser::ArgumentParser(int argc, char* argv[]) {
 }
 
 ArgumentParser::~ArgumentParser() {
+  valid_args_all_.clear();
+  valid_args_short_.clear();
+  valid_args_long_.clear();
+  valid_args_group_.clear();
+  valid_args_positional_.clear();
+  arguments_.clear();
+  program_name_.clear();
 }
 
 void ArgumentParser::AddArgument(std::string arg_short, std::string arg_long,
@@ -324,4 +331,34 @@ std::string ArgumentParser::WrapString_(int32_t leading_tab, int32_t wrap_width,
   }
 
   return ss.str();
+}
+
+int ArgumentParser::GetValue(std::string arg_name, int64_t* value) {
+  std::map<std::string, int32_t>::iterator it = valid_args_all_.find(arg_name);
+  if (it == valid_args_all_.end())
+    return 1;
+  if (arguments_.at(it->second).value_type != VALUE_TYPE_INT)
+    return 1;
+  sscanf(arguments_.at(it->second).value.c_str(), "%ld", value);
+  return 0;
+}
+
+int ArgumentParser::GetValue(std::string arg_name, float* value) {
+  std::map<std::string, int32_t>::iterator it = valid_args_all_.find(arg_name);
+  if (it == valid_args_all_.end())
+    return 1;
+  if (arguments_.at(it->second).value_type != VALUE_TYPE_FLOAT)
+    return 1;
+  sscanf(arguments_.at(it->second).value.c_str(), "%f", value);
+  return 0;
+}
+
+int ArgumentParser::GetValue(std::string arg_name, std::string* value) {
+  std::map<std::string, int32_t>::iterator it = valid_args_all_.find(arg_name);
+  if (it == valid_args_all_.end())
+    return 1;
+  if (arguments_.at(it->second).value_type != VALUE_TYPE_STRING)
+    return 1;
+  *value = arguments_.at(it->second).value;
+  return 0;
 }
