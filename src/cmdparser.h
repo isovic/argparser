@@ -22,7 +22,7 @@
 #define VALUE_TYPE_INT    "INT"
 #define VALUE_TYPE_FLOAT  "FLT"
 #define VALUE_TYPE_STRING "STR"
-#define VALUE_TYPE_NONE   ""
+#define VALUE_TYPE_NONE   " - "
 
 struct Argument {
   std::string arg_short = "";
@@ -31,7 +31,6 @@ struct Argument {
   std::string default_value = "";
   std::string value_type = VALUE_TYPE_NONE;
   std::string description_short = "";
-  std::string description_long = "";
   std::string arg_group = "";
   int32_t positional = 0;
   int32_t count = 0;
@@ -53,9 +52,7 @@ class ArgumentParser {
   void AddArgument(std::string arg_short, std::string arg_long,
                    std::string value_type, std::string default_value,
                    std::string description_short, int32_t positional=0,
-                   std::string argument_group="unknown",
-                   std::string description_long=""
-                   );
+                   std::string argument_group="unknown");
   void ProcessArguments(int argc, char* argv[]);
   std::string VerboseArgumentsByGroup();
   void VerboseArguments(FILE *fp);
@@ -64,13 +61,16 @@ class ArgumentParser {
   Argument* GetArgumentByShortName(std::string arg_name);
   Argument* GetArgumentByLongName(std::string arg_name);
 
-  std::map<std::string, int32_t> valid_args_all;
-  std::map<std::string, int32_t> valid_args_short;
-  std::map<std::string, int32_t> valid_args_long;
-  std::map<std::string, std::vector<int32_t>> valid_args_group;
-  std::map<int32_t, int32_t> valid_args_positional;
-  std::vector<Argument> arguments;
-  std::string program_name;
+ private:
+  std::string WrapString_(int32_t leading_tab, int32_t wrap_width, std::string text);
+
+  std::map<std::string, int32_t> valid_args_all_;
+  std::map<std::string, int32_t> valid_args_short_;
+  std::map<std::string, int32_t> valid_args_long_;
+  std::map<std::string, std::vector<int32_t>> valid_args_group_;
+  std::map<int32_t, int32_t> valid_args_positional_;
+  std::vector<Argument> arguments_;
+  std::string program_name_;
 };
 
 //void ProcessArguments(int argc, char* argv[]);

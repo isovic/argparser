@@ -23,8 +23,7 @@ void ArgumentParser::AddArgument(std::string arg_short, std::string arg_long,
                                  std::string value_type, std::string default_value,
                                  std::string description_short,
                                  int32_t positional,
-                                 std::string argument_group,
-                                 std::string description_long) {
+                                 std::string argument_group) {
 
   if (arg_short == "" && arg_long == "") {
     fprintf(stderr, "ERROR: Argument's name not initialized!\n");
@@ -39,29 +38,35 @@ void ArgumentParser::AddArgument(std::string arg_short, std::string arg_long,
   arg.value_type = value_type;
   arg.default_value = default_value;
   arg.description_short = description_short;
-  arg.description_long = description_long;
   arg.positional = positional;
   arg.arg_group = argument_group;
   arg.is_set = false;
 
-  arguments.push_back(arg);
-  valid_args_short[arg.arg_short] = (arguments.size() - 1);
-  valid_args_long[arg.arg_long] = (arguments.size() - 1);
-  valid_args_all[arg.arg_short] = (arguments.size() - 1);
-  valid_args_all[arg.arg_long] = (arguments.size() - 1);
-  valid_args_positional[arg.positional] = (arguments.size() - 1);
+  if (arg.value_type == VALUE_TYPE_NONE) {
+    if (arg.default_value != "0" && arg.default_value != "1") {
+      arg.value = "0";
+      arg.default_value = "0";
+    }
+  }
 
-  if (valid_args_group.find(arg.arg_group) == valid_args_group.end()) {
+  arguments_.push_back(arg);
+  valid_args_short_[arg.arg_short] = (arguments_.size() - 1);
+  valid_args_long_[arg.arg_long] = (arguments_.size() - 1);
+  valid_args_all_[arg.arg_short] = (arguments_.size() - 1);
+  valid_args_all_[arg.arg_long] = (arguments_.size() - 1);
+  valid_args_positional_[arg.positional] = (arguments_.size() - 1);
+
+  if (valid_args_group_.find(arg.arg_group) == valid_args_group_.end()) {
     std::vector<int32_t> indices;
-    indices.push_back((arguments.size() - 1));
-    valid_args_group[arg.arg_group] = indices;
+    indices.push_back((arguments_.size() - 1));
+    valid_args_group_[arg.arg_group] = indices;
   } else {
-    valid_args_group[arg.arg_group].push_back((arguments.size() - 1));
+    valid_args_group_[arg.arg_group].push_back((arguments_.size() - 1));
   }
 }
 
 void ArgumentParser::ProcessArguments(int argc, char* argv[]) {
-  program_name = std::string(argv[0]);
+  program_name_ = std::string(argv[0]);
 
   for (int32_t i=1; i<argc; i++) {
     std::string arg = argv[i];
@@ -84,22 +89,26 @@ void ArgumentParser::ProcessArguments(int argc, char* argv[]) {
           std::string arg_name = arg.substr(1);
 
           // If the argument cannot be found, report it.
-          if (valid_args_short.find(arg_name) == valid_args_short.end()) {
+          if (valid_args_short_.find(arg_name) == valid_args_short_.end()) {
             fprintf (stderr, "WARNING: Unknown parameter '%s'.\n", arg.c_str());
 
           } else {
-            int32_t argument_index = valid_args_short[arg_name];
-            arguments[argument_index].count += 1;
-            arguments[argument_index].is_set = true;
+            int32_t argument_index = valid_args_short_[arg_name];
+            arguments_[argument_index].count += 1;
+            arguments_[argument_index].is_set = true;
 
-            if (arguments[argument_index].value_type != VALUE_TYPE_NONE) {      // This argument expects a value.
+            if (arguments_[argument_index].value_type != VALUE_TYPE_NONE) {      // This argument expects a value.
               if ((i + 1) < argc) {
-                arguments[argument_index].value = argv[i + 1];
+                arguments_[argument_index].value = argv[i + 1];
                 i += 1;
               } else {
                 fprintf (stderr, "ERROR: Argument '%s' expects a value. Exiting.\n", arg.c_str());
                 exit(1);
               }
+
+            } else {
+              arguments_[argument_index].value = "1";
+
             }
           }
 
@@ -110,17 +119,17 @@ void ArgumentParser::ProcessArguments(int argc, char* argv[]) {
             std::string arg_name = arg.substr(2);
 
             // If the argument cannot be found, report it.
-            if (valid_args_long.find(arg_name) == valid_args_long.end()) {
+            if (valid_args_long_.find(arg_name) == valid_args_long_.end()) {
               fprintf (stderr, "WARNING: Unknown parameter '%s'.\n", arg.c_str());
 
             } else {
-              int32_t argument_index = valid_args_long[arg_name];
-              arguments[argument_index].count += 1;
-              arguments[argument_index].is_set = true;
+              int32_t argument_index = valid_args_long_[arg_name];
+              arguments_[argument_index].count += 1;
+              arguments_[argument_index].is_set = true;
 
-              if (arguments[argument_index].default_value != "") {      // This argument expects a value.
+              if (arguments_[argument_index].value_type != VALUE_TYPE_NONE) {      // This argument expects a value.
                 if ((i + 1) < argc) {
-                  arguments[argument_index].value = argv[i + 1];
+                  arguments_[argument_index].value = argv[i + 1];
                   i += 1;
                 } else {
                   fprintf (stderr, "ERROR: Argument '%s' expects a value. Exiting.\n", arg.c_str());
@@ -134,8 +143,8 @@ void ArgumentParser::ProcessArguments(int argc, char* argv[]) {
     } else {      // In this case, the argument can either be positional, or misspelled.
       int32_t position = i - argc;
 
-      if (valid_args_positional.find(position) != valid_args_positional.end()) {
-        arguments[valid_args_positional[position]].value = arg;
+      if (valid_args_positional_.find(position) != valid_args_positional_.end()) {
+        arguments_[valid_args_positional_[position]].value = arg;
       } else {
         fprintf (stderr, "ERROR: Unknown parameter value: %s. Exiting.\n", arg.c_str());
         exit(1);
@@ -148,20 +157,21 @@ std::string ArgumentParser::VerboseArgumentsByGroup() {
   std::map<std::string, std::vector<int32_t>>::iterator it;
   const int32_t value_type_starting_char = 20;
   const int32_t description_starting_char = 25;
+  const int32_t wrap_width = 120 - description_starting_char;
 
   std::stringstream ret_ss;
 
   // Printout the usage of the program, is program arguments have actually been processed already.
   // If they haven't been, then program_name is empty (program_name == argv[0]).
-  if (program_name.size() > 0) {
+  if (program_name_.size() > 0) {
     ret_ss << "Usage:\n";
-    ret_ss << "  " << program_name.c_str() << " [options]";
+    ret_ss << "  " << program_name_.c_str() << " [options]";
 
     // Positional arguments need to be sorted in the ascending order of their position.
     std::vector<Argument> positional_arguments;
-    for (uint32_t i=0; i<arguments.size(); i++) {
-      if (arguments.at(i).positional < 0) {
-        positional_arguments.push_back(arguments.at(i));
+    for (uint32_t i=0; i<arguments_.size(); i++) {
+      if (arguments_.at(i).positional < 0) {
+        positional_arguments.push_back(arguments_.at(i));
       }
     }
     std::sort(positional_arguments.begin(), positional_arguments.end(), positional_less_than_key());
@@ -177,7 +187,7 @@ std::string ArgumentParser::VerboseArgumentsByGroup() {
 
   ret_ss << "Options\n";
 
-  for (it = valid_args_group.begin(); it != valid_args_group.end(); it++) {
+  for (it = valid_args_group_.begin(); it != valid_args_group_.end(); it++) {
     ret_ss << "  " << it->first.c_str() << ":\n";
     for (uint32_t i = 0; i < it->second.size(); i++) {
       std::stringstream ss;
@@ -186,16 +196,16 @@ std::string ArgumentParser::VerboseArgumentsByGroup() {
       ss << "    ";
       num_chars += 4;
 
-      if (arguments[it->second.at(i)].positional >= 0) {
-        if (arguments[it->second.at(i)].arg_short != "") {
-          ss << "-" << arguments[it->second.at(i)].arg_short;
+      if (arguments_[it->second.at(i)].positional >= 0) {
+        if (arguments_[it->second.at(i)].arg_short != "") {
+          ss << "-" << arguments_[it->second.at(i)].arg_short;
           num_chars += 2;
         } else {
           ss << "  ";
           num_chars += 2;
         }
 
-        if (arguments[it->second.at(i)].arg_short != "" && arguments[it->second.at(i)].arg_long != "") {
+        if (arguments_[it->second.at(i)].arg_short != "" && arguments_[it->second.at(i)].arg_long != "") {
           ss << ", ";
           num_chars += 2;
         } else {
@@ -203,47 +213,46 @@ std::string ArgumentParser::VerboseArgumentsByGroup() {
           num_chars += 2;
         }
 
-        if (arguments[it->second.at(i)].arg_long != "") {
-          ss << "--" << arguments[it->second.at(i)].arg_long;
-          num_chars += 2 + arguments[it->second.at(i)].arg_long.size();
+        if (arguments_[it->second.at(i)].arg_long != "") {
+          ss << "--" << arguments_[it->second.at(i)].arg_long;
+          num_chars += 2 + arguments_[it->second.at(i)].arg_long.size();
         }
 
       } else {
-        std::string arg_name = arguments[it->second.at(i)].arg_long;
+        std::string arg_name = arguments_[it->second.at(i)].arg_long;
         if (arg_name == "")
-          arg_name = arguments[it->second.at(i)].arg_short;
+          arg_name = arguments_[it->second.at(i)].arg_short;
 
         ss << arg_name;
         num_chars += arg_name.size();
       }
 
-      if (arguments[it->second.at(i)].value_type != "") {
+      if (arguments_[it->second.at(i)].value_type != "") {
         int32_t num_empty_chars = (((value_type_starting_char - num_chars) > 0)?(value_type_starting_char - num_chars):1);
         std::string empty_chars(num_empty_chars, ' ');
         ss << empty_chars;
 
-        if (arguments[it->second.at(i)].value_type.size() >= 3)
-          ss << arguments[it->second.at(i)].value_type.substr(0, 3);
+        if (arguments_[it->second.at(i)].value_type.size() >= 3)
+          ss << arguments_[it->second.at(i)].value_type.substr(0, 3);
         else {
-          ss << arguments[it->second.at(i)].value_type << std::string((3 - arguments[it->second.at(i)].value_type.size()), ' ');
+          ss << arguments_[it->second.at(i)].value_type << std::string((3 - arguments_[it->second.at(i)].value_type.size()), ' ');
         }
 
         num_chars += num_empty_chars + 3;
       }
 
-      if (arguments[it->second.at(i)].description_short != "") {
+      if (arguments_[it->second.at(i)].description_short != "") {
         int32_t num_empty_chars = (((description_starting_char - num_chars) > 0)?(description_starting_char - num_chars):1);
         std::string empty_chars(num_empty_chars, ' ');
         ss << empty_chars;
-        ss << arguments[it->second.at(i)].description_short;
-        num_chars += num_empty_chars + arguments[it->second.at(i)].description_short.size();
+        ss << WrapString_(description_starting_char, wrap_width, arguments_[it->second.at(i)].description_short);
+        num_chars += num_empty_chars + arguments_[it->second.at(i)].description_short.size();
       }
-      if (arguments[it->second.at(i)].default_value != "") {
-        ss << " [" << arguments[it->second.at(i)].default_value << "]";
+      if (arguments_[it->second.at(i)].value_type != VALUE_TYPE_NONE && arguments_[it->second.at(i)].default_value != "") {
+        ss << " [" << arguments_[it->second.at(i)].default_value << "]";
       }
 
-
-      if (arguments[it->second.at(i)].arg_short != "" || arguments[it->second.at(i)].arg_long != "") {
+      if (arguments_[it->second.at(i)].arg_short != "" || arguments_[it->second.at(i)].arg_long != "") {
         ret_ss << ss.str() << "\n";
       }
     }
@@ -255,15 +264,14 @@ std::string ArgumentParser::VerboseArgumentsByGroup() {
 }
 
 void ArgumentParser::VerboseArguments(FILE *fp) {
-  for (uint32_t i=0; i<arguments.size(); i++) {
-    fprintf (fp, "'-%s'\t'--%s'\t'%s'\tvalue = '%s'\tdefault = '%s'\tpositional = %d\tcount = %d\n", arguments[i].arg_short.c_str(), arguments[i].arg_long.c_str(), arguments[i].value_type.c_str(), arguments[i].value.c_str(), arguments[i].default_value.c_str(), arguments[i].positional, arguments[i].count);
+  for (uint32_t i=0; i<arguments_.size(); i++) {
+    fprintf (fp, "'-%s'\t'--%s'\t'%s'\tvalue = '%s'\tdefault = '%s'\tpositional = %d\tcount = %d\n", arguments_[i].arg_short.c_str(), arguments_[i].arg_long.c_str(), arguments_[i].value_type.c_str(), arguments_[i].value.c_str(), arguments_[i].default_value.c_str(), arguments_[i].positional, arguments_[i].count);
 
 //    std::string  = "";
 //    std::string  = "";
 //    std::string  = "";
 //    std::string  = "";
 //    std::string description_short = "";
-//    std::string description_long = "";
 //    std::string arg_group = "";
 //    int32_t  = 0;
 //    int32_t count = 0;
@@ -272,22 +280,58 @@ void ArgumentParser::VerboseArguments(FILE *fp) {
 }
 
 Argument* ArgumentParser::GetArgument(std::string arg_name) {
-  std::map<std::string, int32_t>::iterator it = valid_args_all.find(arg_name);
-  if (it == valid_args_all.end())
+  std::map<std::string, int32_t>::iterator it = valid_args_all_.find(arg_name);
+  if (it == valid_args_all_.end())
     return NULL;
-  return (&(arguments.at(it->second)));
+  return (&(arguments_.at(it->second)));
 }
 
 Argument* ArgumentParser::GetArgumentByShortName(std::string arg_name) {
-  std::map<std::string, int32_t>::iterator it = valid_args_short.find(arg_name);
-  if (it == valid_args_short.end())
+  std::map<std::string, int32_t>::iterator it = valid_args_short_.find(arg_name);
+  if (it == valid_args_short_.end())
     return NULL;
-  return (&(arguments.at(it->second)));
+  return (&(arguments_.at(it->second)));
 }
 
 Argument* ArgumentParser::GetArgumentByLongName(std::string arg_name) {
-  std::map<std::string, int32_t>::iterator it = valid_args_long.find(arg_name);
-  if (it == valid_args_long.end())
+  std::map<std::string, int32_t>::iterator it = valid_args_long_.find(arg_name);
+  if (it == valid_args_long_.end())
     return NULL;
-  return (&(arguments.at(it->second)));
+  return (&(arguments_.at(it->second)));
+}
+
+std::string ArgumentParser::WrapString_(int32_t leading_tab, int32_t wrap_width, std::string text) {
+  if (text.size() == 0)
+    return text;
+
+  std::stringstream ss;
+  std::vector<int32_t> spaces;
+  std::string prefix(leading_tab, ' ');
+
+  spaces.push_back(-1);
+  for (uint32_t i=0; i<text.size(); i++) {
+    if (text[i] == ' ' || text[i] == '\t') {
+      spaces.push_back(i);
+    }
+  }
+  spaces.push_back(text.size());
+
+  int32_t line_length = 0;
+  for (uint32_t i=1; i<spaces.size(); i++) {
+    int32_t word_length = spaces[i] - (spaces[i - 1] + 1);
+    if ((i + 1) < spaces.size())
+      word_length += 1;
+
+    if ((line_length + word_length + 1) < wrap_width) {
+
+      ss << text.substr((spaces[i - 1] + 1), word_length);
+      line_length += word_length + 1;
+    } else {
+      ss << "\n" << prefix;
+      ss << text.substr((spaces[i - 1] + 1), word_length);
+      line_length = word_length;
+    }
+  }
+
+  return ss.str();
 }

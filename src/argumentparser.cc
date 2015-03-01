@@ -14,11 +14,12 @@ int main(int argv, char* argc[]) {
 
   ArgumentParser argparser;
 
-  argparser.AddArgument("o", "open", VALUE_TYPE_STRING, "", "Opens the specified file.", 0, "Basic options", "Long description of the parameter. Currently not functional. Can be omitted.");
-  argparser.AddArgument("a", "", VALUE_TYPE_NONE, "", "Test for only a short argument.", 0, "Basic options", "Long description of the parameter. Currently not functional.");
-  argparser.AddArgument("", "threads", VALUE_TYPE_INT, "-1", "Test for only a long argument.", 0, "Basic options", "Long description of the parameter. Currently not functional.");
-//  argparser.AddArgument("", "", "", "Test for specifying no arguments.", 0, "Long description of the parameter. Currently not functional.");
-  argparser.AddArgument("s", "start", VALUE_TYPE_NONE, "", "Starts something important.", 0, "Control options", "Long description of the parameter. Currently not functional.");
+//  argparser.AddArgument("o", "open", VALUE_TYPE_STRING, "", "Opens the specified file.", 0, "Basic options", "Long description of the parameter. Currently not functional. Can be omitted.");
+  argparser.AddArgument("o", "open", VALUE_TYPE_STRING, "", "Long description of the parameter. If too long, it will automatically be wrapped to 120 characters line width.", 0, "Basic options");
+  argparser.AddArgument("a", "", VALUE_TYPE_NONE, "", "Test for only a short argument.", 0, "Basic options");
+  argparser.AddArgument("", "threads", VALUE_TYPE_INT, "-1", "Test for only a long argument.", 0, "Basic options");
+  argparser.AddArgument("", "", VALUE_TYPE_NONE, "", "Test for specifying no arguments.", 0, "Basic options");
+  argparser.AddArgument("s", "start", VALUE_TYPE_NONE, "", "Starts something important.", 0, "Control options");
   argparser.AddArgument("", "reads1", VALUE_TYPE_STRING, "reads.fasta", "Path to the file with read sequences.", -2, "Input/Output");
   argparser.AddArgument("", "reads2", VALUE_TYPE_STRING, "reads2.fasta", "Path to the file with read sequences.", -1, "Input/Output");
 
