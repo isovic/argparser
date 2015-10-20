@@ -18,6 +18,7 @@ Program usage is automatically printed out in case no arguments are specified, o
 Simply copy the `argparser.cc` and `argparser.h` files into your project and `#include <argparser.h>`.  
 To run an example from this repo, type:  
 ```
+cd src
 make  
 ./argumentparser --threads 8  
 ```
