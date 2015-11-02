@@ -10,6 +10,7 @@
 #include "argparser.h"
 
 ArgumentParser::ArgumentParser() {
+  AddArgument(NULL, VALUE_TYPE_NONE, "h", "help", "", "Displays this list of commands.", 0, "General");
 }
 
 ArgumentParser::~ArgumentParser() {
@@ -32,6 +33,14 @@ void ArgumentParser::AddArgument(void *target,
 
   if (arg_short == "" && arg_long == "") {
     fprintf(stderr, "Warning: Argument initialization. Neither a short nor a long name of argument specified. Omitting.\n\n");
+    fflush(stderr);
+    return;
+  }
+
+  /// Check if argument already exists in any of the lists.
+  if (valid_args_short_.find(arg_short) != valid_args_short_.end() ||
+      valid_args_long_.find(arg_long) != valid_args_long_.end()) {
+    fprintf(stderr, "Warning: Argument '-%s' / '--%s' already defined. Omitting.\n\n", arg_short.c_str(), arg_long.c_str());
     fflush(stderr);
     return;
   }
@@ -131,6 +140,12 @@ void ArgumentParser::ProcessArguments(int argc, char* argv[]) {
         if (arg[1] != '-') {      // Handle the short argument assignment.
           std::string arg_name = arg.substr(1);
 
+          /// There is a hardcoded help command, which simply prints the usage and exits.
+          if (arg_name == std::string("h")) {
+            fprintf (stderr, "%s\n", VerboseUsage().c_str());
+            exit(1);
+          }
+
           // If the argument cannot be found, report it.
           if (valid_args_short_.find(arg_name) == valid_args_short_.end()) {
             fprintf (stderr, "ERROR: Unknown parameter '%s'.\n", arg.c_str());
@@ -179,6 +194,12 @@ void ArgumentParser::ProcessArguments(int argc, char* argv[]) {
               int32_t argument_index = valid_args_long_[arg_name];
               arguments_[argument_index].count += 1;
               arguments_[argument_index].is_set = true;
+
+              /// There is a hardcoded help command, which simply prints the usage and exits.
+              if (arg_name == std::string("help")) {
+                fprintf (stderr, "%s\n", VerboseUsage().c_str());
+                exit(1);
+              }
 
               /// Check if the argument requires a value.
               if (arguments_[argument_index].value_type != VALUE_TYPE_NONE) {      // This argument expects a value.
