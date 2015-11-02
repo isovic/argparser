@@ -63,7 +63,8 @@ void ArgumentParser::AddArgument(void *target,
   valid_args_long_[arg.arg_long] = (arguments_.size() - 1);
   valid_args_all_[arg.arg_short] = (arguments_.size() - 1);
   valid_args_all_[arg.arg_long] = (arguments_.size() - 1);
-  valid_args_positional_[arg.positional] = (arguments_.size() - 1);
+  if (arg.positional != 0)
+    valid_args_positional_[arg.positional] = (arguments_.size() - 1);
 
   if (valid_args_group_.find(arg.arg_group) == valid_args_group_.end()) {
     std::vector<int32_t> indices;

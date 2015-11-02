@@ -13,9 +13,9 @@ default: argumentparser
 	$(GCC) $(CC_LIBS) $(INCLUDE) $(CC_FLAGS) -o $@ $<
 
 argumentparser: argparser.o example.o
-	$(GCC) $(LD_FLAGS) $(LIB_DIRS) -o example $? $(LD_LIBS)
+	$(GCC) $(LD_FLAGS) $(LIB_DIRS) -o argumentparser $? $(LD_LIBS)
 
 clean:
 	rm argparser.o
 	rm example.o
-	rm example
+	rm argumentparser
