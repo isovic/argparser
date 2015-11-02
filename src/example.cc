@@ -1,3 +1,7 @@
+/// This will only get compiled if -DTEST_SEQ_LIB_ is passed to the compiler.
+/// Otherwise, the test file will be skipped, not causing compile time errors for the program including this library.
+#ifdef TEST_EXAMPLE_
+
 //============================================================================
 // Name        : example.cc
 // Author      : Ivan Sovic
@@ -56,3 +60,5 @@ int main(int argv, char* argc[]) {
 
 	return 0;
 }
+
+#endif
