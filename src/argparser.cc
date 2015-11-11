@@ -10,7 +10,7 @@
 #include "argparser.h"
 
 ArgumentParser::ArgumentParser() {
-  AddArgument(NULL, VALUE_TYPE_NONE, "h", "help", "", "Displays this list of commands.", 0, "General");
+  AddArgument(NULL, VALUE_TYPE_NONE, "h", "help", "", "Displays this list of commands.", 0, "General options");
 }
 
 ArgumentParser::~ArgumentParser() {
@@ -38,8 +38,8 @@ void ArgumentParser::AddArgument(void *target,
   }
 
   /// Check if argument already exists in any of the lists.
-  if (valid_args_short_.find(arg_short) != valid_args_short_.end() ||
-      valid_args_long_.find(arg_long) != valid_args_long_.end()) {
+  if ((arg_short != "" && valid_args_short_.find(arg_short) != valid_args_short_.end()) ||
+      (arg_long != "" && valid_args_long_.find(arg_long) != valid_args_long_.end())) {
     fprintf(stderr, "Warning: Argument '-%s' / '--%s' already defined. Omitting.\n\n", arg_short.c_str(), arg_long.c_str());
     fflush(stderr);
     return;
