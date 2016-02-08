@@ -8,9 +8,11 @@
 //============================================================================
 
 #include "argparser.h"
+#include <algorithm>
+#include <wordexp.h>
 
 ArgumentParser::ArgumentParser() {
-  AddArgument(NULL, VALUE_TYPE_NONE, "h", "help", "", "Displays this list of commands.", 0, "General options");
+//  AddArgument(NULL, VALUE_TYPE_NONE, "h", "help", "", "Displays this list of commands.", 0, "Help");
 }
 
 ArgumentParser::~ArgumentParser() {
@@ -21,6 +23,7 @@ ArgumentParser::~ArgumentParser() {
   valid_args_positional_.clear();
   arguments_.clear();
   program_name_.clear();
+  composite_args_.clear();
 }
 
 void ArgumentParser::AddArgument(void *target,
@@ -58,7 +61,7 @@ void ArgumentParser::AddArgument(void *target,
   arg.is_set = false;
 
   /// In case the argument doesn't require a parameter (but is a switch instead), and the given value is not 0 or 1, set the default value to 0 (False).
-  if (arg.value_type == VALUE_TYPE_NONE) {
+  if (arg.value_type == VALUE_TYPE_NONE || arg.value_type == VALUE_TYPE_BOOL) {
     if (arg.default_value != "0" && arg.default_value != "1") {
       arg.value = "0";
       arg.default_value = "0";
@@ -79,9 +82,17 @@ void ArgumentParser::AddArgument(void *target,
     std::vector<int32_t> indices;
     indices.push_back((arguments_.size() - 1));
     valid_args_group_[arg.arg_group] = indices;
+    arg_groups_in_order_of_appearance_.push_back(arg.arg_group);
   } else {
     valid_args_group_[arg.arg_group].push_back((arguments_.size() - 1));
   }
+}
+
+/// Defines composite parameters. A composite parameter can change more than one
+/// parameter through a symbolic name. The argument name is literally expanded with the given
+/// arg_expansion string containing other valid command line parameters.
+void ArgumentParser::AddCompositeArgument(std::string arg_name, std::string arg_expansion) {
+  composite_args_[arg_name] = arg_expansion;
 }
 
 /// Checks if a given arg_name is in specified arguments.
@@ -109,16 +120,15 @@ Argument* ArgumentParser::CheckArguments_(std::string arg_name) {
   return NULL;
 }
 
-void ArgumentParser::ProcessArguments(int argc, char* argv[]) {
+void ArgumentParser::ProcessArguments(int argc, char* argv[], int offset) {
   program_name_ = std::string(argv[0]);
 
-  if (argc == 1 && valid_args_positional_.size() > 0) {
+  if ((argc - offset) == 0 && valid_args_positional_.size() > 0) {
     fprintf (stderr, "ERROR: Not all required arguments specified. Exiting.\n\n");
-    fprintf (stderr, "%s\n", VerboseUsage().c_str());
     exit(1);
   }
 
-  for (int32_t i=1; i<argc; i++) {
+  for (int32_t i=offset; i<argc; i++) {
     std::string arg = argv[i];
     std::string arg_next = "";
 
@@ -132,100 +142,81 @@ void ArgumentParser::ProcessArguments(int argc, char* argv[]) {
       // for instance, to enable pipe processing).
       if (arg.size() == 1) {
         fprintf (stderr, "ERROR: Unspecified parameter '%s'.\n", arg.c_str());
-        fprintf (stderr, "%s\n", VerboseUsage().c_str());
         exit(1);
 
       } else {
+        ///////////////////////////////////////////////////////////////
+        /// Find the argument by either the short or the long name.
+        //////////////////////////////////////////////////////////////
+        int32_t argument_index = -1;
         // If the second character is not '-' then the argument is specified by its short name.
         if (arg[1] != '-') {      // Handle the short argument assignment.
           std::string arg_name = arg.substr(1);
 
-          /// There is a hardcoded help command, which simply prints the usage and exits.
-          if (arg_name == std::string("h")) {
-            fprintf (stderr, "%s\n", VerboseUsage().c_str());
-            exit(1);
-          }
-
           // If the argument cannot be found, report it.
           if (valid_args_short_.find(arg_name) == valid_args_short_.end()) {
             fprintf (stderr, "ERROR: Unknown parameter '%s'.\n", arg.c_str());
-            fprintf (stderr, "%s\n", VerboseUsage().c_str());
             exit(1);
-
           } else {
-            int32_t argument_index = valid_args_short_[arg_name];
-            arguments_[argument_index].count += 1;
-            arguments_[argument_index].is_set = true;
-
-            if (arguments_[argument_index].value_type != VALUE_TYPE_NONE) {      // This argument expects a value.
-              if ((i + 1) < argc) {
-                arguments_[argument_index].value = argv[i + 1];
-                SetArgumentTarget_(arguments_[argument_index].target, arguments_[argument_index].value_type, arguments_[argument_index].value);
-                i += 1;
-              } else {
-                fprintf (stderr, "ERROR: Argument '%s' expects a value. Exiting.\n", arg.c_str());
-                fprintf (stderr, "%s\n", VerboseUsage().c_str());
-                exit(1);
-              }
-
-            } else {
-              arguments_[argument_index].value = "1";
-
-            }
+            argument_index = valid_args_short_[arg_name];
           }
 
         } else if (arg[1] == '-') {                  // Handle the long argument assignment.
           /// Check if there is nothing after '--' in the given argument name.
           if (arg.size() == 2) {
             fprintf (stderr, "ERROR: Unspecified parameter '%s'. Exiting.\n\n", arg.c_str());
-            fprintf (stderr, "%s\n", VerboseUsage().c_str());
             exit(1);
-
           } else {
             std::string arg_name = arg.substr(2);
-
             // If the argument cannot be found, report it.
             if (valid_args_long_.find(arg_name) == valid_args_long_.end()) {
               fprintf (stderr, "ERROR: Unknown argument '%s'. Exiting.\n\n", arg.c_str());
-              fprintf (stderr, "%s\n", VerboseUsage().c_str());
               exit(1);
-
             } else {
-              int32_t argument_index = valid_args_long_[arg_name];
-              arguments_[argument_index].count += 1;
-              arguments_[argument_index].is_set = true;
-
-              /// There is a hardcoded help command, which simply prints the usage and exits.
-              if (arg_name == std::string("help")) {
-                fprintf (stderr, "%s\n", VerboseUsage().c_str());
-                exit(1);
-              }
-
-              /// Check if the argument requires a value.
-              if (arguments_[argument_index].value_type != VALUE_TYPE_NONE) {      // This argument expects a value.
-                /// Check if the following command line argument is actually a specified argument and not a value required for this argument.
-                auto matching = CheckArguments_(std::string(argv[i + 1]));
-                if (matching != NULL) {
-                  fprintf (stderr, "ERROR: Argument '%s' expects a value. Exiting.\n\n", arg.c_str());
-                  fprintf (stderr, "%s\n", VerboseUsage().c_str());
-                  exit(1);
-                }
-
-                /// Check if there are actually any command line parameters left to load.
-                if ((i + 1) < argc) {
-                  arguments_[argument_index].value = argv[i + 1];
-                  SetArgumentTarget_(arguments_[argument_index].target, arguments_[argument_index].value_type, arguments_[argument_index].value);
-                  i += 1;
-
-                } else {
-                  fprintf (stderr, "ERROR: Argument '%s' expects a value. Exiting.\n\n", arg.c_str());
-                  fprintf (stderr, "%s\n", VerboseUsage().c_str());
-                  exit(1);
-                }
-              }
+              argument_index = valid_args_long_[arg_name];
             }
           }
         }
+
+        ///////////////////////////////////////////////////////////////
+        /// Process the argument.
+        //////////////////////////////////////////////////////////////
+        if (argument_index >= 0) {
+          arguments_[argument_index].count += 1;
+          arguments_[argument_index].is_set = true;
+
+          if (arguments_[argument_index].value_type != VALUE_TYPE_NONE && arguments_[argument_index].value_type != VALUE_TYPE_BOOL) {      // This argument expects a value.
+            if ((i + 1) < argc) {
+              arguments_[argument_index].value = argv[i + 1];
+              SetArgumentTarget_(arguments_[argument_index].target, arguments_[argument_index].value_type, arguments_[argument_index].value);
+              i += 1;
+            } else {
+              fprintf (stderr, "ERROR: Argument '%s' expects a value. Exiting.\n", arg.c_str());
+              exit(1);
+            }
+
+            /// Handle the special case when the argument is a composite one. Need to find the composite definition and expand it (recursively).
+            if (arguments_[argument_index].value_type == VALUE_TYPE_COMPOSITE) {
+              auto it_arg = composite_args_.find(arguments_[argument_index].value);
+              if (it_arg == composite_args_.end()) {
+                fprintf (stderr, "ERROR: Composite parameter '%s' not defined. Exiting.\n", arguments_[argument_index].value.c_str());
+                exit(1);
+              }
+              wordexp_t p;
+              wordexp(it_arg->second.c_str(), &p, 0);
+              ProcessArguments((int32_t) p.we_wordc, (char **) p.we_wordv, 0);
+              wordfree(&p);
+            }
+
+          } else {
+            arguments_[argument_index].value = "1";
+            if (arguments_[argument_index].value_type == VALUE_TYPE_BOOL) {
+              SetArgumentTarget_(arguments_[argument_index].target, arguments_[argument_index].value_type, arguments_[argument_index].value);
+            }
+          }
+        }
+       /////////////////////////////////////////////////////////
+       /////////////////////////////////////////////////////////
       }
     } else {      // In this case, the argument can either be positional, or misspelled.
       int32_t position_back = i - argc;
@@ -243,7 +234,6 @@ void ArgumentParser::ProcessArguments(int argc, char* argv[]) {
 
       } else {
         fprintf (stderr, "ERROR: Unknown parameter value: '%s'. Exiting.\n\n", arg.c_str());
-        fprintf (stderr, "%s\n", VerboseUsage().c_str());
         exit(1);
       }
     }
@@ -253,19 +243,23 @@ void ArgumentParser::ProcessArguments(int argc, char* argv[]) {
   for (uint32_t i = 0; i < arguments_.size(); i++) {
     if (arguments_[i].positional != 0 && arguments_[i].is_set == false) {
       std::string argument_name = (arguments_[i].arg_long != "") ? arguments_[i].arg_long : arguments_[i].arg_short;
-      fprintf (stderr, "ERROR: Not all required arguments specified. Parameter '%s' missing a value.\n", argument_name.c_str());
-      fprintf (stderr, "Exiting.\n\n");
-      fprintf (stderr, "%s\n", VerboseUsage().c_str());
+      fprintf (stderr, "ERROR: Not all required arguments specified. Parameter '%s' missing a value. Exiting.\n", argument_name.c_str());
       exit(1);
     }
   }
 }
 
 std::string ArgumentParser::VerboseUsage() {
+  int32_t max_arg_len = 0;
+  for (int32_t i=0; i<arguments_.size(); i++) {
+    max_arg_len = std::max(max_arg_len, (int32_t) arguments_[i].arg_long.length());
+  }
+
   std::map<std::string, std::vector<int32_t>>::iterator it;
-  const int32_t value_type_starting_char = 20;
-  const int32_t description_starting_char = 25;
-  const int32_t wrap_width = 120 - description_starting_char;
+  const int32_t short_name_starting_char = 4;
+  const int32_t value_type_starting_char = short_name_starting_char + 6 + max_arg_len + 1;
+  const int32_t description_starting_char = value_type_starting_char + 3 + 3; /// 3 is the length of the type name, and 3 is the spacing between the type name and the description.
+  const int32_t wrap_width = MAX_LINE_LENGTH - description_starting_char;
 
   std::stringstream ret_ss;
 
@@ -287,7 +281,6 @@ std::string ArgumentParser::VerboseUsage() {
     }
     std::sort(positional_arguments_back.begin(), positional_arguments_back.end(), positional_less_than_key());
     std::sort(positional_arguments_front.begin(), positional_arguments_front.end(), positional_less_than_key());
-//Stao sam kod implementiranja pozicionalnih argumenata na pocetku
 
     for (uint32_t i=0; i<positional_arguments_front.size(); i++) {
       std::string arg_name = positional_arguments_front[i].arg_long;
@@ -309,14 +302,19 @@ std::string ArgumentParser::VerboseUsage() {
 
   ret_ss << "Options\n";
 
-  for (it = valid_args_group_.begin(); it != valid_args_group_.end(); it++) {
+//  for (it = valid_args_group_.begin(); it != valid_args_group_.end(); it++) {
+  for (uint32_t group_id = 0; group_id < arg_groups_in_order_of_appearance_.size(); group_id++) {
+    it = valid_args_group_.find(arg_groups_in_order_of_appearance_[group_id]);
+    if (it == valid_args_group_.end()) { continue; }
+
     ret_ss << "  " << it->first.c_str() << ":\n";
     for (uint32_t i = 0; i < it->second.size(); i++) {
       std::stringstream ss;
       int32_t num_chars = 0;
 
-      ss << "    ";
-      num_chars += 4;
+//      ss << "    ";
+      ss << std::string(short_name_starting_char, ' ');
+      num_chars += short_name_starting_char;
 
       if (arguments_[it->second.at(i)].positional == 0) {
         if (arguments_[it->second.at(i)].arg_short != "") {
@@ -368,11 +366,19 @@ std::string ArgumentParser::VerboseUsage() {
         int32_t num_empty_chars = (((description_starting_char - num_chars) > 0)?(description_starting_char - num_chars):1);
         std::string empty_chars(num_empty_chars, ' ');
         ss << empty_chars;
+//        printf ("description_starting_char = %d\n", description_starting_char);
+//        printf ("wrap_width = %d\n", wrap_width);
+//        printf ("description =\n%s\n", arguments_[it->second.at(i)].description.c_str());
+
         ss << WrapString_(description_starting_char, wrap_width, arguments_[it->second.at(i)].description);
         num_chars += num_empty_chars + arguments_[it->second.at(i)].description.size();
       }
       if (arguments_[it->second.at(i)].value_type != VALUE_TYPE_NONE && arguments_[it->second.at(i)].default_value != "") {
-        ss << " [" << arguments_[it->second.at(i)].default_value << "]";
+        if (arguments_[it->second.at(i)].value_type != VALUE_TYPE_BOOL) {
+          ss << " [" << arguments_[it->second.at(i)].default_value << "]";
+        } else {
+          ss << " [" << ((arguments_[it->second.at(i)].default_value == "0" || arguments_[it->second.at(i)].default_value == "false") ? "false" : "true") << "]";
+        }
       }
 
       if (arguments_[it->second.at(i)].arg_short != "" || arguments_[it->second.at(i)].arg_long != "") {
@@ -388,15 +394,22 @@ std::string ArgumentParser::VerboseUsage() {
 
 std::string ArgumentParser::VerboseArguments() {
   std::stringstream ss;
-  for (uint32_t i=0; i<arguments_.size(); i++) {
-    ss << "'-" << arguments_[i].arg_short << "'\t";
-    ss << "'--" << arguments_[i].arg_long << "'\t";
-    ss << "'" << ValueTypeToStr(arguments_[i].value_type) << "'\t";
-    ss << "value = '" << arguments_[i].value << "'\t";
-    ss << "default = '" << arguments_[i].default_value << "'\t";
-    ss << "positional = " << arguments_[i].positional << "\t";
-    ss << "count = " << arguments_[i].count << "\n";
 
+  int32_t max_arg_len = 0;
+  for (int32_t i=0; i<arguments_.size(); i++) {
+    max_arg_len = std::max(max_arg_len, (int32_t) arguments_[i].arg_long.length());
+  }
+
+  std::string padding_string(3, ' ');
+
+  for (uint32_t i=0; i<arguments_.size(); i++) {
+    ss << "'-" << arguments_[i].arg_short << "'" << std::string(1 + padding_string.size() - arguments_[i].arg_short.size(), ' ');
+    ss << "'--" << arguments_[i].arg_long << "'" << std::string(max_arg_len + padding_string.size() - arguments_[i].arg_long.size(), ' ');
+    ss << "'" << ValueTypeToStr(arguments_[i].value_type) << "'" << padding_string;
+    ss << "value = '" << arguments_[i].value << "'" << padding_string;
+    ss << "default = '" << arguments_[i].default_value << "'" << padding_string;
+    ss << "count = " << arguments_[i].count << padding_string;
+    ss << "positional = " << arguments_[i].positional << "\n";
   }
   return ss.str();
 }
@@ -430,22 +443,22 @@ std::string ArgumentParser::WrapString_(int32_t leading_tab, int32_t wrap_width,
   std::vector<int32_t> spaces;
   std::string prefix(leading_tab, ' ');
 
+  /// Enumerate all whitespaces in the text. This is used to split on word delineations.
   spaces.push_back(-1);
   for (uint32_t i=0; i<text.size(); i++) {
-    if (text[i] == ' ' || text[i] == '\t') {
+    if (text[i] == ' ' || text[i] == '\t' || text[i] == '\n') {
       spaces.push_back(i);
     }
   }
   spaces.push_back(text.size());
 
+  /// Check for each word whether it contributes with enough characters to exceed the wrap_width.
   int32_t line_length = 0;
   for (uint32_t i=1; i<spaces.size(); i++) {
     int32_t word_length = spaces[i] - (spaces[i - 1] + 1);
-    if ((i + 1) < spaces.size())
-      word_length += 1;
 
-    if ((line_length + word_length + 1) < wrap_width) {
-
+    if ((i + 1) == spaces.size() || ((i + 1) < spaces.size() && text[spaces[i-1]] != '\n' && (line_length + word_length) < wrap_width)) {
+      if (i > 1) { ss << text[spaces[i-1]]; }
       ss << text.substr((spaces[i - 1] + 1), word_length);
       line_length += word_length + 1;
     } else {
@@ -495,7 +508,14 @@ void ArgumentParser::SetArgumentTarget_(void *target, ValueType value_type, std:
     return;
 
   std::stringstream ss(argument_value);
-  if (value_type == VALUE_TYPE_INT32) {
+  if (value_type == VALUE_TYPE_BOOL) {
+    std::string ss_str = ss.str();
+    if (ss_str == "0" || ss_str == "false") {
+      *((bool *) target) = false;
+    } else {
+      *((bool *) target) = true;
+    }
+  } else if (value_type == VALUE_TYPE_INT32) {
     int32_t value = 0;
     ss >> value;
     *((int32_t *) target) = value;
