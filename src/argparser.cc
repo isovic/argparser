@@ -208,11 +208,17 @@ void ArgumentParser::ProcessArguments(int argc, char* argv[], int offset) {
               wordfree(&p);
             }
 
+          } else if (arguments_[argument_index].value_type == VALUE_TYPE_BOOL) {
+            // Switch the value of the boolean variable.
+            if (arguments_[argument_index].value == "0" || arguments_[argument_index].value == "false") {
+              arguments_[argument_index].value = "1";
+            } else {
+              arguments_[argument_index].value = "0";
+            }
+            SetArgumentTarget_(arguments_[argument_index].target, arguments_[argument_index].value_type, arguments_[argument_index].value);
+
           } else {
             arguments_[argument_index].value = "1";
-            if (arguments_[argument_index].value_type == VALUE_TYPE_BOOL) {
-              SetArgumentTarget_(arguments_[argument_index].target, arguments_[argument_index].value_type, arguments_[argument_index].value);
-            }
           }
         }
        /////////////////////////////////////////////////////////
