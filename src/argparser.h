@@ -121,6 +121,8 @@ class ArgumentParser {
 
   /// Finds an argument given its name, and parses the string value.
   int GetValue(std::string arg_name, std::string *value);
+  const std::string& get_program_name() const;
+  void set_program_name(const std::string& programName);
 
  private:
   /// Wraps a string to a given number of characters in width. Also, assigns a number of tabs at the beginning of each line.

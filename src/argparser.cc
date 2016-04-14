@@ -272,6 +272,9 @@ std::string ArgumentParser::VerboseUsage() {
   // Printout the usage of the program, if program arguments have actually been processed already.
   // If they haven't been, then program_name is empty (program_name == argv[0]).
   if (program_name_.size() > 0) {
+    int32_t num_non_positional_args = 0;
+    for (int32_t i=0; i<arguments_.size(); i++) { if (arguments_[i].positional == 0) num_non_positional_args += 1; }
+
     ret_ss << "Usage:\n";
     ret_ss << "  " << program_name_.c_str();
 
@@ -295,7 +298,9 @@ std::string ArgumentParser::VerboseUsage() {
       ret_ss << " " << arg_name.c_str();
     }
 
-    ret_ss << " [options]";
+    if (num_non_positional_args > 0) {
+      ret_ss << " [options]";
+    }
 
     for (uint32_t i=0; i<positional_arguments_back.size(); i++) {
       std::string arg_name = positional_arguments_back[i].arg_long;
@@ -313,7 +318,11 @@ std::string ArgumentParser::VerboseUsage() {
     it = valid_args_group_.find(arg_groups_in_order_of_appearance_[group_id]);
     if (it == valid_args_group_.end()) { continue; }
 
-    ret_ss << "  " << it->first.c_str() << ":\n";
+    if (it->first.size() > 0) {
+      // In case a group is nameless, the ':' should be omitted.
+      ret_ss << "  " << it->first.c_str() << ":\n";
+    }
+
     for (uint32_t i = 0; i < it->second.size(); i++) {
       std::stringstream ss;
       int32_t num_chars = 0;
@@ -548,4 +557,12 @@ void ArgumentParser::SetArgumentTarget_(void *target, ValueType value_type, std:
   } else if (value_type == VALUE_TYPE_STRING) {
     *((std::string *) target) = argument_value;
   }
+}
+
+const std::string& ArgumentParser::get_program_name() const {
+  return program_name_;
+}
+
+void ArgumentParser::set_program_name(const std::string& programName) {
+  program_name_ = programName;
 }
