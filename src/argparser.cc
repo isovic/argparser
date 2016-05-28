@@ -556,6 +556,8 @@ void ArgumentParser::SetArgumentTarget_(void *target, ValueType value_type, std:
     *((double *) target) = value;
   } else if (value_type == VALUE_TYPE_STRING) {
     *((std::string *) target) = argument_value;
+  } else if (value_type == VALUE_TYPE_COMPOSITE) {
+    *((std::string *) target) = argument_value;
   }
 }
 
