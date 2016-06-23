@@ -137,7 +137,7 @@ void ArgumentParser::ProcessArguments(int argc, char* argv[], int offset) {
       continue;
 
     // The argument should start with a dash. Otherwise, it can only be positional, or an error.
-    if (arg[0] == '-') {
+    if (arg[0] == '-' && arg.size() > 1) {
       // If only a dash is given, then something is wrong (or perhaps that was the intention,
       // for instance, to enable pipe processing).
       if (arg.size() == 1) {
