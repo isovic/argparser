@@ -494,7 +494,7 @@ int ArgumentParser::GetValue(std::string arg_name, int64_t* value) {
 //  if (value_type != VALUE_TYPE_INT32 || value_type != VALUE_TYPE_INT64 || value_type != VALUE_TYPE_UINT32 || value_type != VALUE_TYPE_UINT64)
   if (value_type != VALUE_TYPE_INT64)
     return 1;
-  sscanf(arguments_.at(it->second).value.c_str(), "%ld", value);
+  sscanf(arguments_.at(it->second).value.c_str(), "%lld", value);
   return 0;
 }
 
