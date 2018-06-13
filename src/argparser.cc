@@ -68,7 +68,9 @@ void ArgumentParser::AddArgument(void *target,
     }
   }
 
-  SetArgumentTarget_(target, value_type, default_value);
+  if (value_type != VALUE_TYPE_STRING_LIST) {
+    SetArgumentTarget_(target, value_type, default_value);
+  }
 
   arguments_.push_back(arg);
   valid_args_short_[arg.arg_short] = (arguments_.size() - 1);
@@ -556,6 +558,10 @@ void ArgumentParser::SetArgumentTarget_(void *target, ValueType value_type, std:
     *((double *) target) = value;
   } else if (value_type == VALUE_TYPE_STRING) {
     *((std::string *) target) = argument_value;
+
+  } else if (value_type == VALUE_TYPE_STRING_LIST) {
+    ((std::vector<std::string> *) target)->emplace_back(argument_value);
+
   } else if (value_type == VALUE_TYPE_COMPOSITE) {
     *((std::string *) target) = argument_value;
   }

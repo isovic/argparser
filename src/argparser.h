@@ -30,7 +30,8 @@ typedef enum {
   VALUE_TYPE_FLOAT = 6,
   VALUE_TYPE_DOUBLE = 7,
   VALUE_TYPE_STRING = 8,
-  VALUE_TYPE_COMPOSITE = 9
+  VALUE_TYPE_COMPOSITE = 9,
+  VALUE_TYPE_STRING_LIST = 10
 } ValueType;
 
 inline std::string ValueTypeToStr(ValueType value_type) {
@@ -42,7 +43,7 @@ inline std::string ValueTypeToStr(ValueType value_type) {
     return std::string("INT");
   else if (value_type == VALUE_TYPE_FLOAT || value_type == VALUE_TYPE_DOUBLE)
     return std::string("FLT");
-  else if (value_type == VALUE_TYPE_STRING || value_type == VALUE_TYPE_COMPOSITE)
+  else if (value_type == VALUE_TYPE_STRING || value_type == VALUE_TYPE_STRING_LIST || value_type == VALUE_TYPE_COMPOSITE)
     return std::string("STR");
   return std::string(" - ");
 }
@@ -121,6 +122,7 @@ class ArgumentParser {
 
   /// Finds an argument given its name, and parses the string value.
   int GetValue(std::string arg_name, std::string *value);
+
   const std::string& get_program_name() const;
   void set_program_name(const std::string& programName);
 
